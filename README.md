@@ -1,0 +1,105 @@
+# ReviewLens 2 — listen, understand, improve
+
+A local Python feedback workspace for cafés and restaurants. Version 2 adds a guided interface and practical tools for acting on feedback. This remains a single-user prototype, not a hosted commercial service.
+
+## Upgrade your existing project
+
+1. Stop the old app: click its VS Code terminal and press Ctrl+C.
+2. Extract the updated ZIP into a temporary folder.
+3. Copy the contents of its `reviewlens` folder into your existing `reviewlens` folder. Choose Replace for matching files. Keep your existing `.venv` and `private_data` folders; the ZIP does not contain either.
+4. Double-click `START_REVIEWLENS.bat` in that folder. The launcher installs/checks dependencies and starts the app. Internet is needed for package installation. A `.bat` launcher runs commands locally; you can read its contents in VS Code first.
+5. Open http://localhost:8501 if a browser does not open automatically. Keep the terminal open while using the app. Press Ctrl+C to stop it.
+
+Manual alternative from a PowerShell terminal in the project folder:
+
+```powershell
+# Only needed if you do not already have a .venv:
+py -3.12 -m venv .venv
+
+.\.venv\Scripts\python.exe -m pip install -r requirements-tested.txt
+.\.venv\Scripts\python.exe -m streamlit run app.py
+```
+
+For macOS/Linux, create with `python3 -m venv .venv`, then use `.venv/bin/python` for pip and Streamlit commands. Python 3.12 is the tested runtime. Requirements pin tested direct dependencies; transitive dependencies are not fully locked.
+
+## Five sections, one workflow
+
+| Section | What you can do |
+| --- | --- |
+| Overview | Read sentiment, average stars, negative service-area mentions, weekly volume and rating trends |
+| Add reviews | Upload CSV or paste one review per line; preview and map columns; download a CSV template |
+| Explore reviews | Search, filter sentiment and areas, flag star/text mismatches, inspect clauses, edit and download reply drafts |
+| Action plan | Add tasks with owner and due date; mark progress and add notes; reopen tasks after restarting |
+| Reports & help | Export a printable HTML owner brief, analyzed CSV, and aspect evidence; read plain-language help |
+
+Location and date filters affect insights, exports, and review exploration. Tasks belong to the whole current business/dataset, so filters do not hide them. Recurring topic keywords are learned from the full uploaded dataset; displayed topic counts follow sidebar filters. Search filters only affect the Explore reviews table and its matching-review export, not the report page.
+
+## Input format
+
+```csv
+review,date,rating,location
+"The food was amazing but the service was terrible.",2026-09-01,3,Campus café
+"Lovely coffee and friendly staff.",2026-09-02,5,Campus café
+```
+
+Only review text is required. Dates must be YYYY-MM-DD; ratings must be numbers from 1 to 5. Missing or invalid dates/ratings are reported and excluded from those calculations; their reviews remain available. A date filter excludes undated reviews. The last-30-days filter is relative to the latest date in the file, not today's date.
+
+CSV: UTF-8 with a header, up to 5 MB/10,000 rows/5,000 characters per review. Paste: one review per line, up to 200,000 total characters. Blank reviews and normalized exact-duplicate text are removed. Identical texts from different customers/branches can therefore be excluded too: inspect your dataset before drawing conclusions. Source record numbers count CSV records including the header; they are not necessarily physical line numbers for multiline text.
+
+The sample contains 32 invented reviews with invented dates, ratings, and branches. It is for functionality demonstration, not proof of accuracy or customer impact.
+
+## What the AI/ML actually does
+
+- VADER estimates whole-review sentiment using a lexicon and rules, with standard ±0.05 thresholds. Its score is not a confidence probability.
+- TF-IDF converts text into word/word-pair vectors. K-Means learns recurring topic groups. Candidate cluster counts are compared using cosine silhouette; that score is not classification accuracy.
+- **New aspect estimates are a heuristic baseline, not a trained aspect-based sentiment model.** The app splits sentences and contrast clauses, matches keywords for food/drinks, service, cleanliness, value/billing, atmosphere, and delivery, and runs VADER per clause.
+- `The food was amazing but the service was terrible` can produce separate positive food and negative service estimates. Complex syntax, multiple aspects in one clause, sarcasm, negation across clauses, slang, and indirect references may still be wrong.
+- Aspect counts count unique reviews per area. One review can count in several areas, and mixed reviews can count as both positive and negative within one area.
+- Priorities are negative-count heuristics, not predicted financial impact. Suggestions are fixed checks to consider; reply drafts are editable templates based on whole-review sentiment. Neither is generated by an LLM. Replies are never posted automatically.
+- Ratings and dates are customer-supplied values. Rating mismatch flags need human review, not automatic correction.
+
+Use English reviews. Read original evidence before making decisions. No real-world model accuracy has been measured for this release.
+
+## Data and persistence
+
+Review analysis is local to the host computer. No external inference calls, account connection, or live platform scraping is performed. Uploaded review text remains in Streamlit session memory and is not intentionally written to disk by the app. Reloading the browser may reset the current dataset to the demo; upload your file again to restore the workspace.
+
+Action titles, owners, due dates, statuses, and notes are stored in `private_data/actions.sqlite3`. Keep that folder during upgrades, and do not commit or distribute it. The action plan is keyed to the cleaned dataset (including dates, ratings, branches, and row order) plus business name. A changed dataset starts a new plan; re-uploading identical cleaned content with the same name restores the existing plan. Export the task CSV before changing datasets if you need a human-readable copy. Task history is not automatically merged across new feedback batches.
+
+The SQLite database contains user-entered task content, which could include private details if you type them. Uploaded reviews, downloadable reports, and exported CSVs may also contain sensitive text. Use authorized feedback and remove personal information before analysis. No authentication or multi-tenant isolation is supplied; use on your own computer. Hosting later means reviews are processed on that host.
+
+## Files to understand for interviews
+
+- `app.py`: interface, import workflow, filters, charts, reports, task forms.
+- `engine.py`: cleaning, VADER, TF-IDF, K-Means, topic selection, safe CSV exports.
+- `insights.py`: aspect rules, metadata validation, printable HTML, templates, SQLite task store.
+- `benchmark.py`: supervised TF-IDF/logistic-regression vs VADER comparison.
+- `evaluate.py`: evaluation of VADER against independently labeled reviews.
+- `tests/`: functional tests, not evidence of model quality.
+
+## Evaluate and make the project your own
+
+Collect authorized real feedback and independently label sentiment. Document how mixed opinions are labeled. Use `review,gold_label` columns, where gold_label is positive, neutral, or negative.
+
+```powershell
+.\.venv\Scripts\python.exe evaluate.py private_data\labeled_reviews.csv
+.\.venv\Scripts\python.exe benchmark.py private_data\labeled_reviews.csv > benchmark_results.json
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+The benchmark requires at least 10 distinct reviews per class; substantially more and diverse feedback is needed for useful conclusions. It deduplicates before a fixed stratified 80/20 split and fits the TF-IDF vocabulary only on training data. Report macro-F1 and per-class precision/recall, then inspect errors. Do not tune repeatedly on the test split. Check near duplicates and restaurant/time leakage yourself; grouped/temporal splitting is not implemented. The benchmark classifier is not used by the dashboard.
+
+For the next ML upgrade, annotate aspect spans and sentiment, compare this rule baseline to a trained aspect model, and evaluate on unseen restaurants. Add observed performance to your CV only after measurement.
+
+## Revenue hypothesis
+
+Interview five owners and offer two free feedback-report pilots. Test willingness to pay for a report plus a short discussion before adding accounts or payments. Suggested experiments: ₹499/report or ₹999/month, not verified market rates or expected earnings. Track time per report and actual owner usefulness. Similar customer-intelligence products already exist, so focus on validating a useful local service. No revenue or business improvement is guaranteed.
+
+## Sources
+
+- https://docs.streamlit.io/develop/api-reference/caching-and-state/st.session_state
+- https://docs.streamlit.io/develop/concepts/architecture/forms
+- https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html
+- https://github.com/cjhutto/vaderSentiment
+
+ReviewLens is a working project name; brand availability has not been checked.
