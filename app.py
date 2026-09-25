@@ -26,7 +26,24 @@ h1,h2,h3{letter-spacing:-.035em}h1{font-weight:700!important}
 [data-testid="stVerticalBlockBorderWrapper"]{border-radius:16px}
 .step{padding:20px;background:#fff;border:1px solid #e0e7dc;border-radius:16px;min-height:128px}.step b{color:#214e3b}.step p{font-size:14px;color:#62776d;margin:8px 0 0}
 .stButton>button[kind="primary"],.stFormSubmitButton>button[kind="primary"]{background:#205b46;border:0;color:#fff;border-radius:10px}
-[data-testid="stSidebar"] .stRadio label{padding-top:5px;padding-bottom:5px}
+[data-testid="stSidebar"] .stRadio label  {padding-top:5px;padding-bottom:5px}
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p,
+[data-testid="stSidebar"] .stRadio label p,
+[data-testid="stSidebar"] [data-baseweb="select"] *,
+[data-testid="stSidebar"] input,
+[data-testid="stSidebar"] textarea {
+    color: #29483c !important;
+}
+
+[data-testid="stSidebar"] .brand {
+    color: #174c3e !important;
+}
+
+[data-testid="stSidebar"] .eyebrow {
+    color: #5b7569 !important;
+}
 @media(max-width:700px){.block-container{padding:1rem}.hero{padding:23px}.hero h1{font-size:28px}}
 </style>''',unsafe_allow_html=True)
 
